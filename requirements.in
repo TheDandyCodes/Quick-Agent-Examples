@@ -8,3 +8,4 @@ scikit-learn
 # ChromaDB 0.4.14 avoids `OperationalError: attempt to write a readonly database`
 chromadb==0.4.14
 llama-index-vector-stores-chroma
+streamlit

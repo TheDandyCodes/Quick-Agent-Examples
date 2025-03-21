@@ -29,3 +29,11 @@ install:
 compile:
 	@echo "🔄 Compiling dependencies..."
 	@$(RUN) uv pip compile --universal -o requirements.txt requirements.in
+
+deploy:
+	@echo "🚀 Deploying the application for testing..."
+	$(RUN) streamlit run App/st_RAG.py --server.address 0.0.0.0 --server.port 8505
+
+deploy_test:
+	@echo "🚀 Deploying the application for testing..."
+	$(RUN) streamlit run App/st_RAG.py --server.address localhost --server.port 8505
