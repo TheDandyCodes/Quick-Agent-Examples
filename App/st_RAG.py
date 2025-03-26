@@ -307,13 +307,14 @@ def _build_query_section(sidebar_output):
                         response_mode=sidebar_output["query_engine_response_mode"],
                         # Important: This configuration makes metadata available in the response
                         node_postprocessors=[],
+                        llm=st.session_state["llm"],
                     )
             response = query_engine.query(user_query)
             st.write(response.response)
 
             source_data = get_source_data_from_response(response)
                     
-                    # Mostrar la tabla de fuentes
+            # Show source data in a table
             if source_data:
                 st.dataframe(source_data, use_container_width=True)
                         
@@ -325,17 +326,17 @@ def get_source_data_from_response(response):
     source_data = []
 
     for i, node in enumerate(response.source_nodes):
-        # Extraer información del nodo
+        # Extract score from node
         score = round(node.score * 100, 2) if hasattr(node, 'score') else 'N/A'
                     
-        # Extraer metadatos relevantes
+        # Extract metadata from node
         filename = node.metadata.get('file_name', 'Desconocido')
         page_num = node.metadata.get('page_label', 'N/A')
                     
-        # Max 200 characters to show in the table
+        # Max 200 characters
         text_fragment = node.text[:200] + "..." if len(node.text) > 200 else node.text
                     
-        # Agregar a los datos de la tabla
+        # Append data to source_data
         source_data.append({
             "Posición": f"{i+1}",
             "Score": f"{score}%",
