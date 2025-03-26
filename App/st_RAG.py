@@ -230,7 +230,7 @@ def build_sidebar():
         existing_filenames = list(_get_existing_filenames(
             chroma_collection
         ))
-        expander.write(pd.DataFrame(existing_filenames, columns=["Documentos indexados"]))
+        expander.dataframe(pd.DataFrame(existing_filenames, columns=["Documentos indexados"]), hide_index=True)
 
     # Sidebar Inputs
     sidebar_output = {
@@ -244,10 +244,16 @@ def build_sidebar():
 
 def build_chat():
     # TODO: Docstring
+
+    cont1, cont2 = st.container(), st.container(height=500)
+    if cont1.button("Limpiar chat", key="clear_button"):
+        st.session_state.messages = []
+        st.session_state["chat_engine"].reset()
+
     # Display chat messages from history on app rerun
     # Note: App rerun occurs when a user interacts with the app
     for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
+        with cont2.chat_message(message["role"]):
             st.markdown(message["content"])
 
     # Accept user input
@@ -255,81 +261,90 @@ def build_chat():
         # Add user message to chat history
         st.session_state.messages.append({"role": "user", "content": prompt})
         # Display user message in chat message container
-        with st.chat_message("user"):
+        with cont2.chat_message("user"):
             st.markdown(prompt)
     
         # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            stream_response = st.session_state["chat_engine"].stream_chat()
-            response = st.write_stream(stream_response)
+        with cont2.chat_message("assistant"):
+            stream_response = st.session_state["chat_engine"].stream_chat(prompt)
+            response = st.write_stream(stream_response.response_gen)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 # Main Page
 def build_main_page(sidebar_output: dict[str, bool]) -> None:
     if sidebar_output["index"] is not None:
-        st.success("Index updated successfully.")
+        st.toast("Index updated successfully.")
 
-        user_query = st.text_input("Consulta")
+        tab_query, tab_chat = st.tabs(["Consulta", "Chat"])
 
-        if st.button("Consultar"):
-
-            with st.spinner("Consultando..."):
-
-                query_engine = sidebar_output["index"].as_query_engine(
-                    similarity_top_k=sidebar_output["top_k"],
-                    response_mode=sidebar_output["query_engine_response_mode"],
-                    # Important: This configuration makes metadata available in the response
-                    node_postprocessors=[],
-                )
-                response = query_engine.query(user_query)
-                st.write(response.response)
-
-                source_data = []
-
-                for i, node in enumerate(response.source_nodes):
-                    # Extraer información del nodo
-                    node_id = getattr(node, 'node_id', f"Node-{i+1}")
-                    score = round(node.score * 100, 2) if hasattr(node, 'score') else 'N/A'
-                    
-                    # Extraer metadatos relevantes
-                    filename = node.metadata.get('file_name', 'Desconocido')
-                    page_num = node.metadata.get('page_label', 'N/A')
-                    
-                    # Max 200 characters to show in the table
-                    text_fragment = node.text[:200] + "..." if len(node.text) > 200 else node.text
-                    
-                    # Agregar a los datos de la tabla
-                    source_data.append({
-                        "Posición": f"{i+1}",
-                        "Score": f"{score}%",
-                        "Archivo": filename,
-                        "Página": page_num,
-                        "Fragmento": text_fragment
-                    })
-                
-                # Mostrar la tabla de fuentes
-                if source_data:
-                    st.dataframe(source_data, use_container_width=True)
-                    
-                else:
-                    st.info("No se encontraron nodos fuente para esta consulta.")
-
-        # Chat Engine
-        chat_engine = sidebar_output["index"].as_chat_engine(
-            chat_mode=sidebar_output["chat_engine_response_mode"], 
-            verbose=False, 
-            system_prompt=SYSTEM_PROMPT,
-            similarity_top_k=5, 
-            llm=st.session_state["llm"]
-        )
-
-        st.session_state["chat_engine"] = chat_engine
+        # Query Engine
+        with tab_query:
+            _build_query_section(sidebar_output)
         
-        # Chat
-        build_chat()
+        # Chat Engine
+        with tab_chat:
+            chat_engine = sidebar_output["index"].as_chat_engine(
+                chat_mode=sidebar_output["chat_engine_response_mode"], 
+                verbose=False, 
+                system_prompt=SYSTEM_PROMPT,
+                similarity_top_k=sidebar_output["top_k"], 
+                llm=st.session_state["llm"]
+            )
 
-    st.divider()
+            st.session_state["chat_engine"] = chat_engine
+            
+            # Chat
+            build_chat()
+
+def _build_query_section(sidebar_output):
+    # TODO: Docstring and type hints
+    user_query = st.text_input("Consulta")
+    if st.button("Consultar"):
+        with st.spinner("Consultando..."):
+            query_engine = sidebar_output["index"].as_query_engine(
+                        similarity_top_k=sidebar_output["top_k"],
+                        response_mode=sidebar_output["query_engine_response_mode"],
+                        # Important: This configuration makes metadata available in the response
+                        node_postprocessors=[],
+                    )
+            response = query_engine.query(user_query)
+            st.write(response.response)
+
+            source_data = get_source_data_from_response(response)
+                    
+                    # Mostrar la tabla de fuentes
+            if source_data:
+                st.dataframe(source_data, use_container_width=True)
+                        
+            else:
+                st.info("No se encontraron nodos fuente para esta consulta.")
+
+def get_source_data_from_response(response):
+    # TODO: docstring and type hints
+    source_data = []
+
+    for i, node in enumerate(response.source_nodes):
+        # Extraer información del nodo
+        score = round(node.score * 100, 2) if hasattr(node, 'score') else 'N/A'
+                    
+        # Extraer metadatos relevantes
+        filename = node.metadata.get('file_name', 'Desconocido')
+        page_num = node.metadata.get('page_label', 'N/A')
+                    
+        # Max 200 characters to show in the table
+        text_fragment = node.text[:200] + "..." if len(node.text) > 200 else node.text
+                    
+        # Agregar a los datos de la tabla
+        source_data.append({
+            "Posición": f"{i+1}",
+            "Score": f"{score}%",
+            "Archivo": filename,
+            "Página": page_num,
+            "Fragmento": text_fragment
+        })
+
+    return source_data
 
 
 #########################################################################
@@ -352,6 +367,7 @@ if 'chat_engine' not in st.session_state:
 if 'llm' not in st.session_state:
     st.session_state["llm"] = OpenAI(model=MODEL)
 
+# This is to "clean" the file uploader when "Limpiar Base de Conocimiento" is clicked
 if 'pdf_uploader_key' not in st.session_state:
     st.session_state["pdf_uploader_key"] = "pdf_uploader"
 
