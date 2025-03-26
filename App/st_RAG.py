@@ -6,12 +6,19 @@ import streamlit as st
 from dotenv import load_dotenv
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.llms.openai import OpenAI
 
 load_dotenv()
 
 VECTOR_STORE_DIR = "chroma_db"
 
 CHROMA_COLLECTION = "chroma_collection"
+
+CHAT_MODE = "context"
+
+SYSTEM_PROMPT = "Eres un maestro estoico capaz de aconsejar y hablar de esta filosofía tomando de referencia las meditaciones de Marco Aurelio"
+
+MODEL = "gpt-4o-mini"
 
 
 def _hide_header():
@@ -105,35 +112,86 @@ def create_or_update_rag_index(temp_dir: str) -> None:
 
         return index
 
+def _clean_file_uploader():
+    """
+    Limpia el file uploader cambiando su key en session_state para forzar 
+    su recreación vacío.
+    """
+    # Generates new key for the file uploader
+    if "pdf_uploader_key" not in st.session_state:
+        st.session_state["pdf_uploader_key"] = "pdf_uploader_0"
+    else:
+        # Extract the number of the current key and increment it
+        current_key = st.session_state["pdf_uploader_key"]
+        key_parts = current_key.split("_")
+        if len(key_parts) > 2 and key_parts[-1].isdigit():
+            counter = int(key_parts[-1]) + 1
+        else:
+            counter = 0
+        st.session_state["pdf_uploader_key"] = f"pdf_uploader_{counter}"
+    
+    # Cleans the current state of the uploader
+    if "pdf_uploader" in st.session_state:
+        del st.session_state["pdf_uploader"]
 
 # Sidebar
 def build_sidebar():
     # TODO: Add return typehint
     # TODO: Create Type Class for Sidebar Output
     # TODO: Añadir botón de limpiado de base de datos
-    sidebar_output = {}
+    # TODO: Add default values in the same way as st_interactions.py of bestinver
+    index = None
+    top_k = 5
+    query_engine_response_mode = "tree_summarize"
+    chat_engine_response_mode = "context"
+
     # Load Image
     uploaded_pdfs = st.sidebar.file_uploader(
-        "Carga tus PDFs", type="pdf", accept_multiple_files=True
+        "Carga tus PDFs", 
+        type="pdf", 
+        accept_multiple_files=True, 
+        key=st.session_state.get("pdf_uploader_key", "pdf_uploader")
     )
 
     st.sidebar.divider()
 
     # TODO: No permitir subir documentos repetidos
     if uploaded_pdfs:
-        temp_dir = tempfile.mkdtemp()
 
-        for pdf in uploaded_pdfs:
-            file_path = os.path.join(temp_dir, pdf.name)
-            with open(file_path, "wb") as f:
-                f.write(pdf.read())
+        disable = False
 
-        # TODO: Finish
-        index = create_or_update_rag_index(temp_dir)
+        with st.spinner("Cargando PDFs..."):
+            temp_dir = tempfile.mkdtemp()
+
+            for pdf in uploaded_pdfs:
+                file_path = os.path.join(temp_dir, pdf.name)
+                with open(file_path, "wb") as f:
+                    f.write(pdf.read())
+
+            # TODO: Finish
+            index = create_or_update_rag_index(temp_dir)
 
     else:
-        index = None
+        disable = True
 
+    top_k = st.sidebar.slider("Número de resultados", min_value=1, max_value=100, value=10, disabled=disable)
+
+    tab1, tab2 = st.sidebar.tabs(["Query engine", "Chat engine"])
+
+    query_engine_response_mode = tab1.selectbox(
+        "Modo de respuesta", 
+        options=["tree_summarize", "compact", "refine"],
+        key="query_engine_response_mode",
+        disabled=disable
+    )
+    chat_engine_response_mode = tab2.selectbox(
+        "Modo de respuesta", 
+        options=["context", "condense_plus_context"],
+        key="chat_engine_response_mode",
+        disabled=disable
+    )
+
+    st.sidebar.divider()
 
     db = chromadb.PersistentClient(path=VECTOR_STORE_DIR)
     chroma_collection = db.get_or_create_collection(CHROMA_COLLECTION)
@@ -145,13 +203,22 @@ def build_sidebar():
 
     # If collection is not empty, show the documents and allow to delete them
     # Deleting Knwoledge Base functionality
-    if st.sidebar.button("Limpiar Base de Conocimiento"):
+    if st.sidebar.button("Limpiar Base de Conocimiento", disabled=disable):
         try:
             db.delete_collection(CHROMA_COLLECTION)
             # db.get_or_create_collection(CHROMA_COLLECTION)
+            
+            # Clean the file uploader
+            _clean_file_uploader()
+
             st.success("Base de Conocimiento limpiada exitosamente.")
+
             index = None
             expander.info("No hay documentos indexados.")
+
+            # Force a rerun of the app to clean the file uploader, that assures that the file uploader
+            # is reloaded with the new key and without files.
+            st.rerun()
 
         except Exception as e:
             st.sidebar.error(f"Error al limpiar la Base de Conocimiento: {e}")
@@ -168,20 +235,41 @@ def build_sidebar():
     # Sidebar Inputs
     sidebar_output = {
         "index": index,
+        "top_k": top_k,
+        "query_engine_response_mode": query_engine_response_mode,
+        "chat_engine_response_mode": chat_engine_response_mode,
     }
 
     return sidebar_output
 
+def build_chat():
+    # TODO: Docstring
+    # Display chat messages from history on app rerun
+    # Note: App rerun occurs when a user interacts with the app
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Accept user input
+    if prompt := st.chat_input("What is up?"):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+    
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            stream_response = st.session_state["chat_engine"].stream_chat()
+            response = st.write_stream(stream_response)
+
+        st.session_state.messages.append({"role": "assistant", "content": response})
 
 # Main Page
 def build_main_page(sidebar_output: dict[str, bool]) -> None:
     if sidebar_output["index"] is not None:
         st.success("Index updated successfully.")
 
-        top_k = st.slider("Número de resultados", min_value=1, max_value=100, value=10)
-        response_mode = st.selectbox(
-            "Modo de respuesta", options=["tree_summarize", "compact", "refine"]
-        )
         user_query = st.text_input("Consulta")
 
         if st.button("Consultar"):
@@ -189,8 +277,8 @@ def build_main_page(sidebar_output: dict[str, bool]) -> None:
             with st.spinner("Consultando..."):
 
                 query_engine = sidebar_output["index"].as_query_engine(
-                    similarity_top_k=top_k,
-                    response_mode=response_mode,
+                    similarity_top_k=sidebar_output["top_k"],
+                    response_mode=sidebar_output["query_engine_response_mode"],
                     # Important: This configuration makes metadata available in the response
                     node_postprocessors=[],
                 )
@@ -227,21 +315,45 @@ def build_main_page(sidebar_output: dict[str, bool]) -> None:
                 else:
                     st.info("No se encontraron nodos fuente para esta consulta.")
 
+        # Chat Engine
+        chat_engine = sidebar_output["index"].as_chat_engine(
+            chat_mode=sidebar_output["chat_engine_response_mode"], 
+            verbose=False, 
+            system_prompt=SYSTEM_PROMPT,
+            similarity_top_k=5, 
+            llm=st.session_state["llm"]
+        )
+
+        st.session_state["chat_engine"] = chat_engine
+        
+        # Chat
+        build_chat()
+
     st.divider()
 
 
 #########################################################################
 
 st.set_page_config(
-    page_title="Komorebi AI - Consulta de Interacciones",
+    page_title="RAG",
     layout="wide",
     page_icon="./src/streamlit_dashboard_interactions/assets/apple-touch-icon.png",
 )
 
 _hide_header()
 
-if "img" not in st.session_state:
-    st.session_state["img"] = None
+# Session States
+if 'messages' not in st.session_state:
+    st.session_state["messages"] = []
+
+if 'chat_engine' not in st.session_state:
+    st.session_state["chat_engine"] = None
+
+if 'llm' not in st.session_state:
+    st.session_state["llm"] = OpenAI(model=MODEL)
+
+if 'pdf_uploader_key' not in st.session_state:
+    st.session_state["pdf_uploader_key"] = "pdf_uploader"
 
 # Show Sidebar
 sidebar_output = build_sidebar()
