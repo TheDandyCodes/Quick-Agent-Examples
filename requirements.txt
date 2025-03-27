@@ -9,6 +9,8 @@ aiohttp==3.11.14
     #   llama-index-legacy
 aiosignal==1.3.2
     # via aiohttp
+altair==5.5.0
+    # via streamlit
 annotated-types==0.7.0
     # via pydantic
 anyio==4.9.0
@@ -18,13 +20,20 @@ anyio==4.9.0
     #   starlette
     #   watchfiles
 attrs==25.3.0
-    # via aiohttp
+    # via
+    #   aiohttp
+    #   jsonschema
+    #   referencing
 backoff==2.2.1
     # via posthog
 bcrypt==4.3.0
     # via chromadb
 beautifulsoup4==4.13.3
     # via llama-index-readers-file
+blinker==1.9.0
+    # via streamlit
+cachetools==5.5.2
+    # via streamlit
 certifi==2025.1.31
     # via
     #   httpcore
@@ -44,6 +53,7 @@ click==8.1.8
     # via
     #   llama-cloud-services
     #   nltk
+    #   streamlit
     #   typer
     #   uvicorn
 colorama==0.4.6 ; sys_platform == 'win32' or platform_system == 'Windows'
@@ -69,13 +79,14 @@ distro==1.9.0
     # via
     #   openai
     #   posthog
-fastapi==0.115.11
+fastapi==0.115.12
     # via chromadb
 filelock==3.18.0
     # via
     #   huggingface-hub
     #   torch
     #   transformers
+    #   triton
 filetype==1.2.0
     # via llama-index-core
 flatbuffers==25.2.10
@@ -90,6 +101,10 @@ fsspec==2025.3.0
     #   llama-index-core
     #   llama-index-legacy
     #   torch
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.1.44
+    # via streamlit
 greenlet==3.1.1
     # via sqlalchemy
 grpcio==1.71.0
@@ -126,18 +141,25 @@ idna==3.10
 importlib-resources==6.5.2
     # via chromadb
 jinja2==3.1.6
-    # via torch
+    # via
+    #   altair
+    #   pydeck
+    #   torch
 jiter==0.9.0
     # via openai
 joblib==1.4.2
     # via
     #   nltk
     #   scikit-learn
-llama-cloud==0.1.15
+jsonschema==4.23.0
+    # via altair
+jsonschema-specifications==2024.10.1
+    # via jsonschema
+llama-cloud==0.1.16
     # via
     #   llama-cloud-services
     #   llama-index-indices-managed-llama-cloud
-llama-cloud-services==0.6.6
+llama-cloud-services==0.6.8
     # via llama-parse
 llama-index==0.11.23
     # via -r requirements.in
@@ -218,6 +240,8 @@ multidict==6.2.0
     #   yarl
 mypy-extensions==1.0.0
     # via typing-inspect
+narwhals==1.32.0
+    # via altair
 nest-asyncio==1.6.0
     # via
     #   llama-index-core
@@ -241,49 +265,47 @@ numpy==1.26.4
     #   llama-index-legacy
     #   onnxruntime
     #   pandas
+    #   pydeck
     #   scikit-learn
     #   scipy
+    #   streamlit
     #   transformers
-nvidia-cublas-cu12==12.4.5.8 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cublas-cu12==12.1.3.1 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via
     #   nvidia-cudnn-cu12
     #   nvidia-cusolver-cu12
     #   torch
-nvidia-cuda-cupti-cu12==12.4.127 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cuda-cupti-cu12==12.1.105 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-cuda-nvrtc-cu12==12.4.127 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cuda-nvrtc-cu12==12.1.105 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-cuda-runtime-cu12==12.4.127 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cuda-runtime-cu12==12.1.105 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
 nvidia-cudnn-cu12==9.1.0.70 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-cufft-cu12==11.2.1.3 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cufft-cu12==11.0.2.54 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-curand-cu12==10.3.5.147 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-curand-cu12==10.3.2.106 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-cusolver-cu12==11.6.1.9 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cusolver-cu12==11.4.5.107 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-cusparse-cu12==12.3.1.170 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-cusparse-cu12==12.1.0.106 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via
     #   nvidia-cusolver-cu12
     #   torch
-nvidia-cusparselt-cu12==0.6.2 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-nccl-cu12==2.20.5 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
-nvidia-nccl-cu12==2.21.5 ; platform_machine == 'x86_64' and platform_system == 'Linux'
-    # via torch
-nvidia-nvjitlink-cu12==12.4.127 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-nvjitlink-cu12==12.8.93 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via
-    #   nvidia-cufft-cu12
     #   nvidia-cusolver-cu12
     #   nvidia-cusparse-cu12
-    #   torch
-nvidia-nvtx-cu12==12.4.127 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+nvidia-nvtx-cu12==12.1.105 ; platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
 ollama==0.4.7
     # via llama-index-llms-ollama
 onnxruntime==1.21.0
     # via chromadb
-openai==1.67.0
+openai==1.68.2
     # via
     #   llama-index-agent-openai
     #   llama-index-embeddings-openai
@@ -293,29 +315,37 @@ overrides==7.7.0
     # via chromadb
 packaging==24.2
     # via
+    #   altair
     #   huggingface-hub
     #   marshmallow
     #   onnxruntime
+    #   streamlit
     #   transformers
 pandas==2.2.3
     # via
     #   -r requirements.in
     #   llama-index-legacy
     #   llama-index-readers-file
+    #   streamlit
 pillow==11.1.0
     # via
     #   llama-index-core
     #   sentence-transformers
-posthog==3.21.0
+    #   streamlit
+posthog==3.23.0
     # via chromadb
-propcache==0.3.0
+propcache==0.3.1
     # via
     #   aiohttp
     #   yarl
 protobuf==5.29.4
-    # via onnxruntime
+    # via
+    #   onnxruntime
+    #   streamlit
 pulsar-client==3.6.1
     # via chromadb
+pyarrow==19.0.1
+    # via streamlit
 pydantic==2.10.6
     # via
     #   chromadb
@@ -327,10 +357,14 @@ pydantic==2.10.6
     #   openai
 pydantic-core==2.27.2
     # via pydantic
+pydeck==0.9.1
+    # via streamlit
 pygments==2.19.1
     # via rich
 pypdf==5.4.0
     # via llama-index-readers-file
+pypdf2==3.0.1
+    # via -r requirements.in
 pypika==0.48.9
     # via chromadb
 pyreadline3==3.5.4 ; sys_platform == 'win32'
@@ -339,11 +373,11 @@ python-dateutil==2.9.0.post0
     # via
     #   pandas
     #   posthog
-python-dotenv==1.0.1
+python-dotenv==1.1.0
     # via
     #   llama-cloud-services
     #   uvicorn
-pytz==2025.1
+pytz==2025.2
     # via pandas
 pyyaml==6.0.2
     # via
@@ -351,6 +385,10 @@ pyyaml==6.0.2
     #   llama-index-core
     #   transformers
     #   uvicorn
+referencing==0.36.2
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 regex==2024.11.6
     # via
     #   nltk
@@ -363,10 +401,15 @@ requests==2.32.3
     #   llama-index-core
     #   llama-index-legacy
     #   posthog
+    #   streamlit
     #   tiktoken
     #   transformers
 rich==13.9.4
     # via typer
+rpds-py==0.24.0
+    # via
+    #   jsonschema
+    #   referencing
 safetensors==0.5.3
     # via transformers
 scikit-learn==1.6.1
@@ -378,16 +421,16 @@ scipy==1.15.2
     #   -r requirements.in
     #   scikit-learn
     #   sentence-transformers
-sentence-transformers==3.4.1
+sentence-transformers==4.0.1
     # via llama-index-embeddings-huggingface
-setuptools==77.0.3 ; python_full_version >= '3.12'
-    # via torch
 shellingham==1.5.4
     # via typer
 six==1.17.0
     # via
     #   posthog
     #   python-dateutil
+smmap==5.0.2
+    # via gitdb
 sniffio==1.3.1
     # via
     #   anyio
@@ -400,9 +443,11 @@ sqlalchemy==2.0.39
     #   llama-index-legacy
 starlette==0.46.1
     # via fastapi
+streamlit==1.44.0
+    # via -r requirements.in
 striprtf==0.0.26
     # via llama-index-readers-file
-sympy==1.13.1
+sympy==1.13.3
     # via
     #   onnxruntime
     #   torch
@@ -410,6 +455,7 @@ tenacity==8.5.0
     # via
     #   llama-index-core
     #   llama-index-legacy
+    #   streamlit
 threadpoolctl==3.6.0
     # via scikit-learn
 tiktoken==0.9.0
@@ -420,8 +466,12 @@ tokenizers==0.21.1
     # via
     #   chromadb
     #   transformers
-torch==2.6.0
+toml==0.10.2
+    # via streamlit
+torch==2.4.1
     # via sentence-transformers
+tornado==6.4.2
+    # via streamlit
 tqdm==4.67.1
     # via
     #   chromadb
@@ -431,14 +481,15 @@ tqdm==4.67.1
     #   openai
     #   sentence-transformers
     #   transformers
-transformers==4.49.0
+transformers==4.50.2
     # via sentence-transformers
-triton==3.2.0 ; platform_machine == 'x86_64' and platform_system == 'Linux'
+triton==3.0.0 ; python_full_version < '3.13' and platform_machine == 'x86_64' and platform_system == 'Linux'
     # via torch
 typer==0.15.2
     # via chromadb
-typing-extensions==4.12.2
+typing-extensions==4.13.0
     # via
+    #   altair
     #   anyio
     #   beautifulsoup4
     #   chromadb
@@ -449,7 +500,10 @@ typing-extensions==4.12.2
     #   openai
     #   pydantic
     #   pydantic-core
+    #   referencing
+    #   sentence-transformers
     #   sqlalchemy
+    #   streamlit
     #   torch
     #   typer
     #   typing-inspect
@@ -458,7 +512,7 @@ typing-inspect==0.9.0
     #   dataclasses-json
     #   llama-index-core
     #   llama-index-legacy
-tzdata==2025.1
+tzdata==2025.2
     # via pandas
 urllib3==2.3.0
     # via requests
@@ -466,6 +520,8 @@ uvicorn==0.34.0
     # via chromadb
 uvloop==0.21.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
     # via uvicorn
+watchdog==6.0.0 ; platform_system != 'Darwin'
+    # via streamlit
 watchfiles==1.0.4
     # via uvicorn
 websockets==15.0.1
