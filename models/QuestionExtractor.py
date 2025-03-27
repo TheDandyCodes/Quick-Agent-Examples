@@ -30,16 +30,24 @@ class ExtractedQuestionsSchema(BaseModel):
 
 
 class QuestionExtractor:
+    """Class to extract questions and sections from a text using the Google GenAI API."""    
     def __init__(
         self,
         system_prompt: str,
         api_key: str,
         model: str = "gemini-2.0-flash",
     ):
-        """Initialize the QuestionExtractor class."""
+        """Initialize the QuestionExtractor class.
 
-        # for doc in documents:
-        #     index.insert(doc)
+        Parameters
+        ----------
+        system_prompt : str
+            System prompt to use for the LLM model.
+        api_key : str
+            API key for the LLM Model API.
+        model : str, optional
+            LLM model to use, by default "gemini-2.0-flash".
+        """        
         self.system_prompt = system_prompt
         self.questions = []
         self.api_key = api_key
@@ -52,12 +60,13 @@ class QuestionExtractor:
         Parameters
         ----------
         pdf_path : str
-            Path to the PDF file.
+            Path to the PDF form file in which to extract
+            the sections and their questions.
 
         Returns
         -------
         str
-            The text extracted from the PDF file.
+            The text extracted from the PDF form file.
         """
         with open(pdf_path, "rb") as file:
             reader = PyPDF2.PdfReader(file)
@@ -65,7 +74,7 @@ class QuestionExtractor:
         return text
 
     def extract_questions(self, text: str) -> ExtractedQuestionsSchema:
-        """Extract questions from a text.
+        """Extract sections and their questions from a text.
 
         Parameters
         ----------
