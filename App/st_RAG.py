@@ -7,19 +7,14 @@ from dotenv import load_dotenv
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.llms.openai import OpenAI
+import toml
+from pathlib import Path
 
 load_dotenv()
 
-VECTOR_STORE_DIR = "chroma_db"
-
-CHROMA_COLLECTION = "chroma_collection"
-
-CHAT_MODE = "context"
+config = toml.load(Path(__file__).parents[1] / "config.toml")
 
 SYSTEM_PROMPT = "Eres un maestro estoico capaz de aconsejar y hablar de esta filosofía tomando de referencia las meditaciones de Marco Aurelio"
-
-MODEL = "gpt-4o-mini"
-
 
 def _hide_header():
     """Hide header of streamlit."""
@@ -50,20 +45,20 @@ def _get_existing_filenames(chroma_collection):
 
 def create_or_update_rag_index(temp_dir: str) -> None:
     # TODO: Docstring y return type hint
-    if not os.path.exists(VECTOR_STORE_DIR):
-        os.makedirs(VECTOR_STORE_DIR)
+    if not os.path.exists(config["vector-stores"]["RESPONDER_VS"]):
+        os.makedirs(config["vector-stores"]["RESPONDER_VS"])
 
     # Initialize the ChromaDB client
-    db = chromadb.PersistentClient(path=VECTOR_STORE_DIR)
+    db = chromadb.PersistentClient(path=config["vector-stores"]["RESPONDER_VS"])
 
     # Create a new collection
-    chroma_collection = db.get_or_create_collection(CHROMA_COLLECTION)
+    chroma_collection = db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
 
     # Assign chroma as the vector_store to the context
     vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-    if not os.path.exists(VECTOR_STORE_DIR) or len(os.listdir(VECTOR_STORE_DIR)) == 0:
+    if not os.path.exists(config["vector-stores"]["RESPONDER_VS"]) or len(os.listdir(config["vector-stores"]["RESPONDER_VS"])) == 0:
         st.toast("No stored index found. Creating a new one.")
         # Load documents
         documents = SimpleDirectoryReader(temp_dir).load_data()
@@ -193,8 +188,8 @@ def build_sidebar():
 
     st.sidebar.divider()
 
-    db = chromadb.PersistentClient(path=VECTOR_STORE_DIR)
-    chroma_collection = db.get_or_create_collection(CHROMA_COLLECTION)
+    db = chromadb.PersistentClient(path=config["vector-stores"]["RESPONDER_VS"])
+    chroma_collection = db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
 
     # Show indexed documents in the sidebar (knowledge base from the RAG)
     expander = st.sidebar.expander("Ver documentos indexados (Base de Conocimiento)")
@@ -205,8 +200,8 @@ def build_sidebar():
     # Deleting Knwoledge Base functionality
     if st.sidebar.button("Limpiar Base de Conocimiento", disabled=disable):
         try:
-            db.delete_collection(CHROMA_COLLECTION)
-            # db.get_or_create_collection(CHROMA_COLLECTION)
+            db.delete_collection(config["chroma"]["CHROMA_COLLECTION"])
+            # db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
             
             # Clean the file uploader
             _clean_file_uploader()
@@ -366,7 +361,7 @@ if 'chat_engine' not in st.session_state:
     st.session_state["chat_engine"] = None
 
 if 'llm' not in st.session_state:
-    st.session_state["llm"] = OpenAI(model=MODEL)
+    st.session_state["llm"] = OpenAI(model=config["openai"]["MODEL_NAME"])
 
 # This is to "clean" the file uploader when "Limpiar Base de Conocimiento" is clicked
 if 'pdf_uploader_key' not in st.session_state:
