@@ -1,0 +1,15 @@
+[vector-stores]
+RESPONDER_VS = "chroma_db"
+
+[chroma]
+CHROMA_COLLECTION = "chroma_collection"
+
+[openai]
+MODEL_NAME = "gpt-4o-mini"
+
+[google-genai]
+MODEL_NAME = "gemini-2.0-flash"
+
+[test-documents]
+FORMULARIO = "models/05- Anexo V 2022_CRECEMOS IV .pdf"
+
