@@ -353,7 +353,7 @@ def get_source_data_from_response(response):
 st.set_page_config(
     page_title="RAG",
     layout="wide",
-    page_icon="./src/streamlit_dashboard_interactions/assets/apple-touch-icon.png",
+    page_icon="App/assets/page_logo.jpg",
 )
 
 _hide_header()

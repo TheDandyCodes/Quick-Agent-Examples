@@ -1,0 +1,27 @@
+[theme]
+
+# Primary accent for interactive elements
+primaryColor = '#BC012D'
+
+# Background color for the main content area
+backgroundColor = '#FFFFFF'
+
+# Background color for sidebar and most interactive widgets
+secondaryBackgroundColor = '#f7f7f7'
+
+# Color used for almost all text
+textColor = '#1d1c1c'
+
+# Font family for all text in the app, except code blocks
+# Accepted values (serif | sans serif | monospace)
+# Default: "sans serif"
+# font = "sans serif"
+
+[global]
+
+# By default, Streamlit displays a warning when a user sets both a widget
+# default value in the function defining the widget and a widget value via
+# the widget's key in `st.session_state`.
+# If you'd like to turn off this warning, set this to True.
+# Default: false
+disableWidgetStateDuplicationWarning = true
