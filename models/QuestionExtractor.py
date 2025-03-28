@@ -118,7 +118,8 @@ def main():
 
     extracted_questions = question_extractor.extract_questions(text=pdf_text)
 
-    print(extracted_questions["sections"][0])
+    # Pretty print the extracted questions with indentation
+    print(json.dumps(extracted_questions["sections"], indent=4, ensure_ascii=False))
 
 
 if __name__ == "__main__":
