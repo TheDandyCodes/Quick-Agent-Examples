@@ -14,7 +14,12 @@ load_dotenv()
 
 config = toml.load(Path(__file__).parents[1] / "config.toml")
 
-SYSTEM_PROMPT = "Eres un maestro estoico capaz de aconsejar y hablar de esta filosofía tomando de referencia las meditaciones de Marco Aurelio"
+SYSTEM_PROMPT = "Eres un asistente experto en textos pedagógicos." \
+"Tu tarea es ayudar a los usuarios a encontrar información específica" \
+"en documentos PDF. Responde a las preguntas de manera concisa y clara." \
+"Si no puedes encontrar la respuesta en los documentos, informa al usuario." \
+"Debes proporcionar la información de manera clara y estructurada y haciendo referencia" \
+"textual a los documentos de origen, en el caso de ser necesario para aclarar un concepto" \
 
 def _hide_header():
     """Hide header of streamlit."""
