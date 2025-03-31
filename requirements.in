@@ -1,6 +1,8 @@
 llama-index
 llama-index-embeddings-huggingface
 llama-index-llms-ollama
+llama-index-llms-gemini
+llama-index-llms-openai
 numpy
 pandas
 scipy
