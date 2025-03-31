@@ -1,7 +1,5 @@
-[vector-stores]
-RESPONDER_VS = "chroma_db"
-
 [chroma]
+VECTOR_STORE = "chroma_db"
 CHROMA_COLLECTION = "chroma_collection"
 
 [openai]
