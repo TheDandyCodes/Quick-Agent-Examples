@@ -107,26 +107,31 @@ def build_sidebar() -> SidebarOutput:
 
     if uploaded_pdfs:
         disable = False
+        
+        current_pdf_identifiers = [(pdf.name, pdf.size) for pdf in uploaded_pdfs]
+        previous_pdf_identifiers = [
+            (pdf.name, pdf.size) for pdf in st.session_state["previous_uploaded_pdfs"]
+        ]
+        # En el caso de que el usuario suba un nuevo PDF o cambie uno de los PDFs
+        if current_pdf_identifiers != previous_pdf_identifiers:
+            with st.spinner("Cargando PDFs..."):
+                temp_dir = tempfile.mkdtemp()
 
-        with st.spinner("Cargando PDFs..."):
-            temp_dir = tempfile.mkdtemp()
+                for pdf in uploaded_pdfs:
+                    file_path = os.path.join(temp_dir, pdf.name)
+                    with open(file_path, "wb") as f:
+                        f.write(pdf.read())
 
-            for pdf in uploaded_pdfs:
-                file_path = os.path.join(temp_dir, pdf.name)
-                with open(file_path, "wb") as f:
-                    f.write(pdf.read())
+                st.session_state["rag"].create_or_update_rag_index(
+                    vector_store_path=config["chroma"]["VECTOR_STORE"],
+                    chroma_collection_name=config["chroma"]["CHROMA_COLLECTION"],
+                    data_dir=temp_dir,
+                )
 
-            st.session_state["rag"].create_or_update_rag_index(
-                vector_store_path=config["chroma"]["VECTOR_STORE"],
-                chroma_collection=config["chroma"]["CHROMA_COLLECTION"],
-                data_dir=temp_dir,
-            )
-
-            # In case `uploaded_pdfs` changes from previous state,
-            # st.session_state[“docs_updated”] = True
-            # This is to check if the documents have been updated,
-            # so that the chat context is preserved
-            if uploaded_pdfs != st.session_state["previous_uploaded_pdfs"]:
+                # In case `uploaded_pdfs` changes from previous state,
+                # st.session_state[“docs_updated”] = True
+                # This is to check if the documents have been updated,
+                # so that the chat context is preserved
                 st.session_state["docs_updated"] = True
                 st.session_state["previous_uploaded_pdfs"] = uploaded_pdfs
 
@@ -385,7 +390,7 @@ if "chat_engine" not in st.session_state:
 if "rag" not in st.session_state:
     rag = RAG(
         system_prompt=SYSTEM_PROMPT,
-        model=config["openai"]["MODEL_NAME"],
+        model=config["google-genai"]["MODEL_NAME"],
     )
     st.session_state["rag"] = rag
 
