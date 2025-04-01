@@ -8,7 +8,6 @@ from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreI
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from prompts import EXTRACTION_PROMPT
 
 
 class RAG:
@@ -32,10 +31,8 @@ class RAG:
             self.model = OpenAI(model=model, api_key=os.environ["OPENAI_API_KEY"])
 
         self.index = None
-        self.chat_engine = None
-        self.query_engine = None
 
-    def _get_existing_filenames(self, chroma_collection):
+    def get_existing_filenames(self, chroma_collection):
         # TODO: Docstring and type hints
         # TODO: Cache?
         metadatas = chroma_collection.get().get("metadatas", [])
@@ -47,6 +44,7 @@ class RAG:
             }
         else:
             existing_filenames = set()
+
         return existing_filenames
 
     def create_or_update_rag_index(
@@ -93,7 +91,7 @@ class RAG:
             # Get existing filenames previously indexed
             # Note: This assume that we can get metadata from the documents
             try:
-                existing_filenames = self._get_existing_filenames(chroma_collection)
+                existing_filenames = self.get_existing_filenames(chroma_collection)
             except Exception as e:
                 print(f"WARNING: (Error: {e})")
                 # If the collection is empty, set the existing filenames to an empty set
@@ -129,16 +127,17 @@ class RAG:
             similarity_top_k=top_k,
             llm=self.model,
         )
-        self.chat_engine = chat_engine
+        return chat_engine
 
-    def build_query_engine(self, response_mode: str, top_k: int):
+    def build_query_engine(self, response_mode: str, top_k: int, **kwargs):
         query_engine = self.index.as_query_engine(
             response_mode=response_mode,
             verbose=True,
             similarity_top_k=top_k,
             llm=self.model,
+            **kwargs,
         )
-        self.query_engine = query_engine
+        return query_engine
 
 
 def main():
@@ -149,7 +148,7 @@ def main():
     config = toml.load(Path(__file__).parents[1] / "config.toml")
 
     rag = RAG(
-        system_prompt=EXTRACTION_PROMPT,
+        system_prompt="Eres un asistente virtual que ayuda a los usuarios a encontrar información en documentos. ",
         model=config["openai"]["MODEL_NAME"],
     )
 
@@ -160,19 +159,19 @@ def main():
     )
 
     # Chat engine
-    rag.build_chat_engine(chat_mode="context", top_k=5)
+    chat_engine = rag.build_chat_engine(chat_mode="context", top_k=5)
 
     # Query engine
-    rag.build_query_engine(response_mode="tree_summarize", top_k=5)
+    query_engine = rag.build_query_engine(response_mode="tree_summarize", top_k=5)
 
     # Example usage
     query = "De que trata el documento?"
 
     # Chat
-    print(f"Chat Engine Response: {rag.chat_engine.chat(query)}\n")
+    print(f"Chat Engine Response: {chat_engine.chat(query)}\n")
 
     # Query
-    print(f"Query Engine Response: {rag.query_engine.query(query)}\n")
+    print(f"Query Engine Response: {query_engine.query(query)}\n")
 
 
 if __name__ == "__main__":
