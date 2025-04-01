@@ -1,42 +1,48 @@
 import os
 import tempfile
-from typing import TypedDict
-import pandas as pd
-import chromadb
-import streamlit as st
-from dotenv import load_dotenv
-from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from llama_index.llms.openai import OpenAI
-import toml
 from pathlib import Path
-from models.RAG import RAG
+from typing import TypedDict
+
+import chromadb
+import pandas as pd
+import streamlit as st
+import toml
+from dotenv import load_dotenv
 from llama_index.core.base.response.schema import Response
+
+from models.RAG import RAG
 
 load_dotenv()
 
 config = toml.load(Path(__file__).parents[1] / "config.toml")
 
-SYSTEM_PROMPT = "Eres un asistente experto en textos pedagógicos." \
-"Tu tarea es ayudar a los usuarios a encontrar información específica" \
-"en documentos PDF. Responde a las preguntas de manera concisa y clara." \
-"Si no puedes encontrar la respuesta en los documentos, informa al usuario." \
-"Debes proporcionar la información de manera clara y estructurada y haciendo referencia" \
-"textual a los documentos de origen, en el caso de ser necesario para aclarar un concepto" \
+SYSTEM_PROMPT = (
+    "Eres un asistente experto en textos pedagógicos."
+    "Tu tarea es ayudar a los usuarios a encontrar información específica"
+    "en documentos PDF. Responde a las preguntas de manera concisa y clara."
+    "Si no puedes encontrar la respuesta en los documentos, informa al usuario."
+    "Debes proporcionar la información de manera clara y estructurada y haciendo referencia"
+    "textual a los documentos de origen, en el caso de ser necesario para aclarar un concepto"
+)
+
 
 class SidebarOutput(TypedDict):
     """Class to store the sidebar output."""
+
     top_k: int
     query_engine_response_mode: str
     chat_engine_response_mode: str
 
+
 class SourceData(TypedDict):
     """Class to store the source data from a LlamaIndex query response."""
+
     position: str
     score: str
     filename: str
     page_num: str
     text_fragment: str
+
 
 def _hide_header():
     """Hide header of streamlit."""
@@ -51,9 +57,10 @@ def _hide_header():
         unsafe_allow_html=True,
     )
 
+
 def _clean_file_uploader():
     """
-    Limpia el file uploader cambiando su key en session_state para forzar 
+    Limpia el file uploader cambiando su key en session_state para forzar
     su recreación vacío.
     """
     # Generates new key for the file uploader
@@ -68,10 +75,11 @@ def _clean_file_uploader():
         else:
             counter = 0
         st.session_state["pdf_uploader_key"] = f"pdf_uploader_{counter}"
-    
+
     # Cleans the current state of the uploader
     if "pdf_uploader" in st.session_state:
         del st.session_state["pdf_uploader"]
+
 
 # Sidebar
 def build_sidebar() -> SidebarOutput:
@@ -89,10 +97,10 @@ def build_sidebar() -> SidebarOutput:
     """
     # Load Image
     uploaded_pdfs = st.sidebar.file_uploader(
-        "Carga tus PDFs", 
-        type="pdf", 
-        accept_multiple_files=True, 
-        key=st.session_state.get("pdf_uploader_key", "pdf_uploader")
+        "Carga tus PDFs",
+        type="pdf",
+        accept_multiple_files=True,
+        key=st.session_state.get("pdf_uploader_key", "pdf_uploader"),
     )
 
     st.sidebar.divider()
@@ -114,45 +122,46 @@ def build_sidebar() -> SidebarOutput:
                 data_dir=temp_dir,
             )
 
-            # In case `uploaded_pdfs` changes from previous state, 
+            # In case `uploaded_pdfs` changes from previous state,
             # st.session_state[“docs_updated”] = True
-            # This is to check if the documents have been updated, 
+            # This is to check if the documents have been updated,
             # so that the chat context is preserved
             if uploaded_pdfs != st.session_state["previous_uploaded_pdfs"]:
                 st.session_state["docs_updated"] = True
                 st.session_state["previous_uploaded_pdfs"] = uploaded_pdfs
-            
 
     else:
         disable = True
 
     top_k = st.sidebar.slider(
-        "Número de resultados", 
-        min_value=1, 
-        max_value=100, 
-        value=st.session_state["widgets_default_values_by_keys"]["top_k"], 
-        disabled=disable
+        "Número de resultados",
+        min_value=1,
+        max_value=100,
+        value=st.session_state["widgets_default_values_by_keys"]["top_k"],
+        disabled=disable,
     )
 
     tab1, tab2 = st.sidebar.tabs(["Query engine", "Chat engine"])
 
     query_engine_response_mode = tab1.selectbox(
-        "Modo de respuesta", 
+        "Modo de respuesta",
         options=["tree_summarize", "compact", "refine"],
         key="query_engine_response_mode",
-        disabled=disable
+        disabled=disable,
     )
     chat_engine_response_mode = tab2.selectbox(
-        "Modo de respuesta", 
+        "Modo de respuesta",
         options=["context", "condense_plus_context"],
         key="chat_engine_response_mode",
-        disabled=disable
+        disabled=disable,
     )
 
     st.sidebar.divider()
 
     db = chromadb.PersistentClient(path=config["chroma"]["VECTOR_STORE"])
-    chroma_collection = db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
+    chroma_collection = db.get_or_create_collection(
+        config["chroma"]["CHROMA_COLLECTION"]
+    )
 
     # Show indexed documents in the sidebar (knowledge base from the RAG)
     expander = st.sidebar.expander("Ver documentos indexados (Base de Conocimiento)")
@@ -165,7 +174,7 @@ def build_sidebar() -> SidebarOutput:
         try:
             db.delete_collection(config["chroma"]["CHROMA_COLLECTION"])
             # db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
-            
+
             # Clean the file uploader
             _clean_file_uploader()
 
@@ -182,15 +191,18 @@ def build_sidebar() -> SidebarOutput:
 
         except Exception as e:
             st.sidebar.error(f"Error al limpiar la Base de Conocimiento: {e}")
-        
+
     # In case there is no collections
     if len(db.list_collections()) == 0:
         existing_filenames = []
     else:
-        existing_filenames = list(st.session_state["rag"].get_existing_filenames(
-            chroma_collection
-        ))
-        expander.dataframe(pd.DataFrame(existing_filenames, columns=["Documentos indexados"]), hide_index=True)
+        existing_filenames = list(
+            st.session_state["rag"].get_existing_filenames(chroma_collection)
+        )
+        expander.dataframe(
+            pd.DataFrame(existing_filenames, columns=["Documentos indexados"]),
+            hide_index=True,
+        )
 
     # Sidebar Inputs
     sidebar_output = {
@@ -200,6 +212,7 @@ def build_sidebar() -> SidebarOutput:
     }
 
     return sidebar_output
+
 
 def build_chat() -> None:
     """Build the chat interface of the app that allows the user
@@ -222,13 +235,14 @@ def build_chat() -> None:
         # Display user message in chat message container
         with cont2.chat_message("user"):
             st.markdown(prompt)
-    
+
         # Display assistant response in chat message container
         with cont2.chat_message("assistant"):
             stream_response = st.session_state["chat_engine"].stream_chat(prompt)
             response = st.write_stream(stream_response.response_gen)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 # Main Page
 def build_main_page(sidebar_output: SidebarOutput) -> None:
@@ -254,23 +268,23 @@ def build_main_page(sidebar_output: SidebarOutput) -> None:
         # Query Engine
         with tab_query:
             _build_query_section(sidebar_output)
-        
+
         # Chat Engine
         with tab_chat:
             # In case the documents have been updated
             if st.session_state["docs_updated"]:
-
                 chat_engine = st.session_state["rag"].build_chat_engine(
-                    chat_mode=sidebar_output["chat_engine_response_mode"], 
-                    top_k=sidebar_output["top_k"]
+                    chat_mode=sidebar_output["chat_engine_response_mode"],
+                    top_k=sidebar_output["top_k"],
                 )
 
                 st.session_state["chat_engine"] = chat_engine
 
                 st.session_state["docs_updated"] = False
-                
+
             # Chat
             build_chat()
+
 
 def _build_query_section(sidebar_output: SidebarOutput) -> None:
     """Build the query section of the app.
@@ -290,20 +304,21 @@ def _build_query_section(sidebar_output: SidebarOutput) -> None:
                 response_mode=sidebar_output["query_engine_response_mode"],
                 top_k=sidebar_output["top_k"],
                 # Important: This configuration makes metadata available in the response
-                node_postprocessors=[]
+                node_postprocessors=[],
             )
 
             response = query_engine.query(user_query)
             st.write(response.response)
 
             source_data = get_source_data_from_response(response)
-                    
+
             # Show source data in a table
             if source_data:
                 st.dataframe(source_data, use_container_width=True)
-                        
+
             else:
                 st.info("No se encontraron nodos fuente para esta consulta.")
+
 
 def get_source_data_from_response(response: Response) -> list[SourceData]:
     """Get source metadata from LlamaIndex query response.
@@ -327,23 +342,25 @@ def get_source_data_from_response(response: Response) -> list[SourceData]:
     source_data = []
     for i, node in enumerate(response.source_nodes):
         # Extract score from node
-        score = round(node.score * 100, 2) if hasattr(node, 'score') else 'N/A'
-                    
+        score = round(node.score * 100, 2) if hasattr(node, "score") else "N/A"
+
         # Extract metadata from node
-        filename = node.metadata.get('file_name', 'Desconocido')
-        page_num = node.metadata.get('page_label', 'N/A')
-                    
+        filename = node.metadata.get("file_name", "Desconocido")
+        page_num = node.metadata.get("page_label", "N/A")
+
         # Max 200 characters
         text_fragment = node.text[:200] + "..." if len(node.text) > 200 else node.text
 
         # Append data to source_data
-        source_data.append({
-            "Posición": f"{i+1}",
-            "Score": f"{score}%",
-            "Archivo": filename,
-            "Página": page_num,
-            "Fragmento": text_fragment
-        })
+        source_data.append(
+            {
+                "Posición": f"{i+1}",
+                "Score": f"{score}%",
+                "Archivo": filename,
+                "Página": page_num,
+                "Fragmento": text_fragment,
+            }
+        )
 
     return source_data
 
@@ -359,13 +376,13 @@ st.set_page_config(
 _hide_header()
 
 # Session States
-if 'messages' not in st.session_state:
+if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
-if 'chat_engine' not in st.session_state:
+if "chat_engine" not in st.session_state:
     st.session_state["chat_engine"] = None
 
-if 'rag' not in st.session_state:
+if "rag" not in st.session_state:
     rag = RAG(
         system_prompt=SYSTEM_PROMPT,
         model=config["openai"]["MODEL_NAME"],
@@ -373,17 +390,17 @@ if 'rag' not in st.session_state:
     st.session_state["rag"] = rag
 
 # This is to "clean" the file uploader when "Limpiar Base de Conocimiento" is clicked
-if 'pdf_uploader_key' not in st.session_state:
+if "pdf_uploader_key" not in st.session_state:
     st.session_state["pdf_uploader_key"] = "pdf_uploader"
 
-if 'docs_updated' not in st.session_state:
+if "docs_updated" not in st.session_state:
     st.session_state["docs_updated"] = False
 
-if 'previous_uploaded_pdfs' not in st.session_state:
+if "previous_uploaded_pdfs" not in st.session_state:
     st.session_state["previous_uploaded_pdfs"] = []
 
-if 'widgets_default_values_by_keys' not in st.session_state:
-    st.session_state['widgets_default_values_by_keys'] = {
+if "widgets_default_values_by_keys" not in st.session_state:
+    st.session_state["widgets_default_values_by_keys"] = {
         "top_k": 5,
     }
 
