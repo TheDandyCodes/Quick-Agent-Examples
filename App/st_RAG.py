@@ -336,8 +336,6 @@ def get_source_data_from_response(response: Response) -> list[SourceData]:
         # Max 200 characters
         text_fragment = node.text[:200] + "..." if len(node.text) > 200 else node.text
 
-        st.write(type(page_num))
-        st.write(type(text_fragment))
         # Append data to source_data
         source_data.append({
             "Posición": f"{i+1}",
