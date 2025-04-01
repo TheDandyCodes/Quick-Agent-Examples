@@ -3,12 +3,13 @@ from pathlib import Path
 
 import chromadb
 import toml
+from chromadb.api.models.Collection import Collection
 from dotenv import load_dotenv
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from chromadb.api.models.Collection import Collection
+
 
 class RAG:
     def __init__(
