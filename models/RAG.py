@@ -8,7 +8,7 @@ from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreI
 from llama_index.llms.gemini import Gemini
 from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
-
+from chromadb.api.models.Collection import Collection
 
 class RAG:
     def __init__(
@@ -32,9 +32,23 @@ class RAG:
 
         self.index = None
 
-    def get_existing_filenames(self, chroma_collection):
-        # TODO: Docstring and type hints
-        # TODO: Cache?
+    def get_existing_filenames(self, chroma_collection: Collection) -> set:
+        """Get existing filenames from the ChromaDB collection.
+
+        This method retrieves the filenames of documents that have already been indexed
+        in the ChromaDB collection. It helps to avoid re-indexing documents that are
+        already present in the collection.
+
+        Parameters
+        ----------
+        chroma_collection : Collection
+            The ChromaDB collection from which to retrieve existing filenames.
+
+        Returns
+        -------
+        set
+            A set of filenames that are already indexed in the ChromaDB collection.
+        """
         metadatas = chroma_collection.get().get("metadatas", [])
         if metadatas:
             existing_filenames = {
@@ -48,9 +62,24 @@ class RAG:
         return existing_filenames
 
     def create_or_update_rag_index(
-        self, vector_store_path: str, chroma_collection: str, data_dir: str
+        self, vector_store_path: str, chroma_collection_name: str, data_dir: str
     ) -> None:
-        # TODO: Docstring y return type hint
+        """Create or update the RAG index.
+
+        This method initializes the ChromaDB client, creates a new collection if it doesn't
+        exist, and loads documents from the specified data directory. If the vector store
+        already exists, it loads the existing index from storage. It also checks for new files
+        in the data directory and indexes them if they are not already present in the collection.
+
+        Parameters
+        ----------
+        vector_store_path : str
+            The path where the vector store will be created or loaded from.
+        chroma_collection_name : str
+            The name of the ChromaDB collection to be created or loaded.
+        data_dir : str
+            The directory containing the documents to be indexed.
+        """
         if not os.path.exists(vector_store_path):
             os.makedirs(vector_store_path)
 
@@ -58,7 +87,7 @@ class RAG:
         db = chromadb.PersistentClient(path=vector_store_path)
 
         # Create a new collection
-        chroma_collection = db.get_or_create_collection(chroma_collection)
+        chroma_collection = db.get_or_create_collection(chroma_collection_name)
 
         # Assign chroma as the vector_store to the context
         vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
@@ -154,7 +183,7 @@ def main():
 
     rag.create_or_update_rag_index(
         vector_store_path="Quick-Examples/chroma_db",
-        chroma_collection="chroma_collection_test",
+        chroma_collection_name="chroma_collection_test",
         data_dir="Quick-Examples/data",
     )
 
@@ -164,14 +193,14 @@ def main():
     # Query engine
     query_engine = rag.build_query_engine(response_mode="tree_summarize", top_k=5)
 
-    # Example usage
-    query = "De que trata el documento?"
+    # # Example usage
+    # query = "De que trata el documento?"
 
-    # Chat
-    print(f"Chat Engine Response: {chat_engine.chat(query)}\n")
+    # # Chat
+    # print(f"Chat Engine Response: {chat_engine.chat(query)}\n")
 
-    # Query
-    print(f"Query Engine Response: {query_engine.query(query)}\n")
+    # # Query
+    # print(f"Query Engine Response: {query_engine.query(query)}\n")
 
 
 if __name__ == "__main__":
