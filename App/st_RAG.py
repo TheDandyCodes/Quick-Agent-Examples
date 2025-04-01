@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import TypedDict
 import pandas as pd
 import chromadb
 import streamlit as st
@@ -10,7 +11,7 @@ from llama_index.llms.openai import OpenAI
 import toml
 from pathlib import Path
 from models.RAG import RAG
-
+from llama_index.core.base.response.schema import Response
 
 load_dotenv()
 
@@ -22,6 +23,20 @@ SYSTEM_PROMPT = "Eres un asistente experto en textos pedagógicos." \
 "Si no puedes encontrar la respuesta en los documentos, informa al usuario." \
 "Debes proporcionar la información de manera clara y estructurada y haciendo referencia" \
 "textual a los documentos de origen, en el caso de ser necesario para aclarar un concepto" \
+
+class SidebarOutput(TypedDict):
+    """Class to store the sidebar output."""
+    top_k: int
+    query_engine_response_mode: str
+    chat_engine_response_mode: str
+
+class SourceData(TypedDict):
+    """Class to store the source data from a LlamaIndex query response."""
+    position: str
+    score: str
+    filename: str
+    page_num: str
+    text_fragment: str
 
 def _hide_header():
     """Hide header of streamlit."""
@@ -59,15 +74,19 @@ def _clean_file_uploader():
         del st.session_state["pdf_uploader"]
 
 # Sidebar
-def build_sidebar():
-    # TODO: Add return typehint
-    # TODO: Create Type Class for Sidebar Output
-    # TODO: Añadir botón de limpiado de base de datos
-    # TODO: Add default values in the same way as st_interactions.py of bestinver
-    top_k = 5
-    query_engine_response_mode = "tree_summarize"
-    chat_engine_response_mode = "context"
+def build_sidebar() -> SidebarOutput:
+    """Build the sidebar of the app.
 
+    This function creates the sidebar of the app, allowing the user to upload
+    PDFs, select the number of results to display, and choose the response modes
+    for the query and chat engines. It also provides an option to clear the knowledge
+    base.
+
+    Returns
+    -------
+    SidebarOutput
+        A dictionary containing the selected paramters from the sidebar.
+    """
     # Load Image
     uploaded_pdfs = st.sidebar.file_uploader(
         "Carga tus PDFs", 
@@ -78,7 +97,6 @@ def build_sidebar():
 
     st.sidebar.divider()
 
-    # TODO: No permitir subir documentos repetidos
     if uploaded_pdfs:
         disable = False
 
@@ -108,7 +126,13 @@ def build_sidebar():
     else:
         disable = True
 
-    top_k = st.sidebar.slider("Número de resultados", min_value=1, max_value=100, value=10, disabled=disable)
+    top_k = st.sidebar.slider(
+        "Número de resultados", 
+        min_value=1, 
+        max_value=100, 
+        value=st.session_state["widgets_default_values_by_keys"]["top_k"], 
+        disabled=disable
+    )
 
     tab1, tab2 = st.sidebar.tabs(["Query engine", "Chat engine"])
 
@@ -177,9 +201,9 @@ def build_sidebar():
 
     return sidebar_output
 
-def build_chat():
-    # TODO: Docstring
-
+def build_chat() -> None:
+    """Build the chat interface of the app that allows the user
+    to interact with the RAG assistant."""
     cont1, cont2 = st.container(), st.container(height=500)
     if cont1.button("Limpiar chat", key="clear_button"):
         st.session_state.messages = []
@@ -207,7 +231,21 @@ def build_chat():
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 # Main Page
-def build_main_page(sidebar_output: dict[str, bool]) -> None:
+def build_main_page(sidebar_output: SidebarOutput) -> None:
+    """Build the main page of the app.
+
+    This function creates the main page of the app, allowing the user to
+    interact with the RAG assistant. It includes a query engine and a chat
+    engine. The query engine allows the user to ask questions and receive
+    answers based on the indexed documents. The chat engine allows the user
+    to have a conversation with the assistant, which can provide information
+    and answer questions based on the indexed documents.
+
+    Parameters
+    ----------
+    sidebar_output : SidebarOutput
+        A dictionary containing the selected parameters from the sidebar.
+    """
     if st.session_state["rag"].index is not None:
         st.toast("Index updated successfully.")
 
@@ -234,8 +272,17 @@ def build_main_page(sidebar_output: dict[str, bool]) -> None:
             # Chat
             build_chat()
 
-def _build_query_section(sidebar_output):
-    # TODO: Docstring and type hints
+def _build_query_section(sidebar_output: SidebarOutput) -> None:
+    """Build the query section of the app.
+
+    This function creates the query section of the app, allowing the user to
+    make inquiries and receive answers based on the indexed documents.
+
+    Parameters
+    ----------
+    sidebar_output : SidebarOutput
+        A dictionary containing the selected parameters from the sidebar.
+    """
     user_query = st.text_input("Consulta")
     if st.button("Consultar"):
         with st.spinner("Consultando..."):
@@ -258,10 +305,26 @@ def _build_query_section(sidebar_output):
             else:
                 st.info("No se encontraron nodos fuente para esta consulta.")
 
-def get_source_data_from_response(response):
-    # TODO: docstring and type hints
-    source_data = []
+def get_source_data_from_response(response: Response) -> list[SourceData]:
+    """Get source metadata from LlamaIndex query response.
 
+    This function extracts the source metadata from the LlamaIndex query response
+    and returns it in a structured format. The metadata includes the position,
+    score, filename, page number, and text fragment of the source nodes.
+
+    Parameters
+    ----------
+    response : Response
+        The LlamaIndex query response object.
+        It contains the source nodes and their metadata.
+
+    Returns
+    -------
+    list[SourceData]
+        A list of dictionaries containing the source metadata.
+        Each dictionary contains the position, score, filename, page number,
+    """
+    source_data = []
     for i, node in enumerate(response.source_nodes):
         # Extract score from node
         score = round(node.score * 100, 2) if hasattr(node, 'score') else 'N/A'
@@ -272,7 +335,9 @@ def get_source_data_from_response(response):
                     
         # Max 200 characters
         text_fragment = node.text[:200] + "..." if len(node.text) > 200 else node.text
-                    
+
+        st.write(type(page_num))
+        st.write(type(text_fragment))
         # Append data to source_data
         source_data.append({
             "Posición": f"{i+1}",
@@ -313,12 +378,16 @@ if 'rag' not in st.session_state:
 if 'pdf_uploader_key' not in st.session_state:
     st.session_state["pdf_uploader_key"] = "pdf_uploader"
 
-# TODO: Consider if this is necessary
 if 'docs_updated' not in st.session_state:
     st.session_state["docs_updated"] = False
 
 if 'previous_uploaded_pdfs' not in st.session_state:
     st.session_state["previous_uploaded_pdfs"] = []
+
+if 'widgets_default_values_by_keys' not in st.session_state:
+    st.session_state['widgets_default_values_by_keys'] = {
+        "top_k": 5,
+    }
 
 # Show Sidebar
 sidebar_output = build_sidebar()
