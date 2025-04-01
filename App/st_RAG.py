@@ -9,6 +9,8 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from llama_index.llms.openai import OpenAI
 import toml
 from pathlib import Path
+from models.RAG import RAG
+
 
 load_dotenv()
 
@@ -33,84 +35,6 @@ def _hide_header():
     """,
         unsafe_allow_html=True,
     )
-
-def _get_existing_filenames(chroma_collection):
-    # TODO: Docstring and type hints
-    # TODO: Cache?
-    metadatas = chroma_collection.get().get("metadatas", [])
-    if metadatas:
-        existing_filenames = {
-            metadata["file_name"]
-            for metadata in metadatas
-            if "file_name" in metadata
-        }
-    else:
-        existing_filenames = set()
-    return existing_filenames
-
-def create_or_update_rag_index(temp_dir: str) -> None:
-    # TODO: Docstring y return type hint
-    if not os.path.exists(config["vector-stores"]["RESPONDER_VS"]):
-        os.makedirs(config["vector-stores"]["RESPONDER_VS"])
-
-    # Initialize the ChromaDB client
-    db = chromadb.PersistentClient(path=config["vector-stores"]["RESPONDER_VS"])
-
-    # Create a new collection
-    chroma_collection = db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
-
-    # Assign chroma as the vector_store to the context
-    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
-    storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-    if not os.path.exists(config["vector-stores"]["RESPONDER_VS"]) or len(os.listdir(config["vector-stores"]["RESPONDER_VS"])) == 0:
-        st.toast("No stored index found. Creating a new one.")
-        # Load documents
-        documents = SimpleDirectoryReader(temp_dir).load_data()
-        # Verify that there are no empty documents
-        for doc in documents:
-            if not doc:
-                print("Documento vacío encontrado")
-
-        # Create index
-        index = VectorStoreIndex.from_documents(
-            documents, storage_context=storage_context
-        )
-        return index
-    else:
-        st.toast("Stored index found. Updating it.")
-        # Load index from storage
-        index = VectorStoreIndex.from_vector_store(
-            vector_store, storage_context=storage_context
-        )
-
-        # Get existing filenames previously indexed
-        # Note: This assume that we can get metadata from the documents
-        try:
-            existing_filenames = _get_existing_filenames(chroma_collection)
-        except Exception as e:
-            print(f"WARNING: (Error: {e})")
-            # If the collection is empty, set the existing filenames to an empty set
-            existing_filenames = set()
-
-        all_files = os.listdir(temp_dir)
-        new_files = set(all_files) - existing_filenames
-
-        if new_files:
-            new_file_paths = [os.path.join(temp_dir, file) for file in new_files]
-            # Verify that the files exist
-            new_files_paths = [path for path in new_file_paths if os.path.exists(path)]
-            # only index new files
-            new_documents = SimpleDirectoryReader(
-                input_files=new_files_paths
-            ).load_data()
-
-            # TODO: Filtrar documentos vaciós?
-            if new_documents:
-                for new_doc in new_documents:
-                    index.insert(new_doc)
-
-        return index
 
 def _clean_file_uploader():
     """
@@ -140,7 +64,6 @@ def build_sidebar():
     # TODO: Create Type Class for Sidebar Output
     # TODO: Añadir botón de limpiado de base de datos
     # TODO: Add default values in the same way as st_interactions.py of bestinver
-    index = None
     top_k = 5
     query_engine_response_mode = "tree_summarize"
     chat_engine_response_mode = "context"
@@ -157,7 +80,6 @@ def build_sidebar():
 
     # TODO: No permitir subir documentos repetidos
     if uploaded_pdfs:
-
         disable = False
 
         with st.spinner("Cargando PDFs..."):
@@ -168,8 +90,20 @@ def build_sidebar():
                 with open(file_path, "wb") as f:
                     f.write(pdf.read())
 
-            # TODO: Finish
-            index = create_or_update_rag_index(temp_dir)
+            st.session_state["rag"].create_or_update_rag_index(
+                vector_store_path=config["chroma"]["VECTOR_STORE"],
+                chroma_collection=config["chroma"]["CHROMA_COLLECTION"],
+                data_dir=temp_dir,
+            )
+
+            # In case `uploaded_pdfs` changes from previous state, 
+            # st.session_state[“docs_updated”] = True
+            # This is to check if the documents have been updated, 
+            # so that the chat context is preserved
+            if uploaded_pdfs != st.session_state["previous_uploaded_pdfs"]:
+                st.session_state["docs_updated"] = True
+                st.session_state["previous_uploaded_pdfs"] = uploaded_pdfs
+            
 
     else:
         disable = True
@@ -193,7 +127,7 @@ def build_sidebar():
 
     st.sidebar.divider()
 
-    db = chromadb.PersistentClient(path=config["vector-stores"]["RESPONDER_VS"])
+    db = chromadb.PersistentClient(path=config["chroma"]["VECTOR_STORE"])
     chroma_collection = db.get_or_create_collection(config["chroma"]["CHROMA_COLLECTION"])
 
     # Show indexed documents in the sidebar (knowledge base from the RAG)
@@ -211,9 +145,11 @@ def build_sidebar():
             # Clean the file uploader
             _clean_file_uploader()
 
+            # Now there are no documents in the collection
+            st.session_state["docs_updated"] = True
+
             st.success("Base de Conocimiento limpiada exitosamente.")
 
-            index = None
             expander.info("No hay documentos indexados.")
 
             # Force a rerun of the app to clean the file uploader, that assures that the file uploader
@@ -227,14 +163,13 @@ def build_sidebar():
     if len(db.list_collections()) == 0:
         existing_filenames = []
     else:
-        existing_filenames = list(_get_existing_filenames(
+        existing_filenames = list(st.session_state["rag"].get_existing_filenames(
             chroma_collection
         ))
         expander.dataframe(pd.DataFrame(existing_filenames, columns=["Documentos indexados"]), hide_index=True)
 
     # Sidebar Inputs
     sidebar_output = {
-        "index": index,
         "top_k": top_k,
         "query_engine_response_mode": query_engine_response_mode,
         "chat_engine_response_mode": chat_engine_response_mode,
@@ -273,7 +208,7 @@ def build_chat():
 
 # Main Page
 def build_main_page(sidebar_output: dict[str, bool]) -> None:
-    if sidebar_output["index"] is not None:
+    if st.session_state["rag"].index is not None:
         st.toast("Index updated successfully.")
 
         tab_query, tab_chat = st.tabs(["Consulta", "Chat"])
@@ -284,16 +219,18 @@ def build_main_page(sidebar_output: dict[str, bool]) -> None:
         
         # Chat Engine
         with tab_chat:
-            chat_engine = sidebar_output["index"].as_chat_engine(
-                chat_mode=sidebar_output["chat_engine_response_mode"], 
-                verbose=False, 
-                system_prompt=SYSTEM_PROMPT,
-                similarity_top_k=sidebar_output["top_k"], 
-                llm=st.session_state["llm"]
-            )
+            # In case the documents have been updated
+            if st.session_state["docs_updated"]:
 
-            st.session_state["chat_engine"] = chat_engine
-            
+                chat_engine = st.session_state["rag"].build_chat_engine(
+                    chat_mode=sidebar_output["chat_engine_response_mode"], 
+                    top_k=sidebar_output["top_k"]
+                )
+
+                st.session_state["chat_engine"] = chat_engine
+
+                st.session_state["docs_updated"] = False
+                
             # Chat
             build_chat()
 
@@ -302,13 +239,13 @@ def _build_query_section(sidebar_output):
     user_query = st.text_input("Consulta")
     if st.button("Consultar"):
         with st.spinner("Consultando..."):
-            query_engine = sidebar_output["index"].as_query_engine(
-                        similarity_top_k=sidebar_output["top_k"],
-                        response_mode=sidebar_output["query_engine_response_mode"],
-                        # Important: This configuration makes metadata available in the response
-                        node_postprocessors=[],
-                        llm=st.session_state["llm"],
-                    )
+            query_engine = st.session_state["rag"].build_query_engine(
+                response_mode=sidebar_output["query_engine_response_mode"],
+                top_k=sidebar_output["top_k"],
+                # Important: This configuration makes metadata available in the response
+                node_postprocessors=[]
+            )
+
             response = query_engine.query(user_query)
             st.write(response.response)
 
@@ -365,12 +302,23 @@ if 'messages' not in st.session_state:
 if 'chat_engine' not in st.session_state:
     st.session_state["chat_engine"] = None
 
-if 'llm' not in st.session_state:
-    st.session_state["llm"] = OpenAI(model=config["openai"]["MODEL_NAME"])
+if 'rag' not in st.session_state:
+    rag = RAG(
+        system_prompt=SYSTEM_PROMPT,
+        model=config["openai"]["MODEL_NAME"],
+    )
+    st.session_state["rag"] = rag
 
 # This is to "clean" the file uploader when "Limpiar Base de Conocimiento" is clicked
 if 'pdf_uploader_key' not in st.session_state:
     st.session_state["pdf_uploader_key"] = "pdf_uploader"
+
+# TODO: Consider if this is necessary
+if 'docs_updated' not in st.session_state:
+    st.session_state["docs_updated"] = False
+
+if 'previous_uploaded_pdfs' not in st.session_state:
+    st.session_state["previous_uploaded_pdfs"] = []
 
 # Show Sidebar
 sidebar_output = build_sidebar()
