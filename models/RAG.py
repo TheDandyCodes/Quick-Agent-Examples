@@ -194,14 +194,14 @@ def main():
     # Query engine
     query_engine = rag.build_query_engine(response_mode="tree_summarize", top_k=5)
 
-    # # Example usage
-    # query = "De que trata el documento?"
+    # Example usage
+    query = "De que trata el documento?"
 
-    # # Chat
-    # print(f"Chat Engine Response: {chat_engine.chat(query)}\n")
+    # Chat
+    print(f"Chat Engine Response: {chat_engine.chat(query)}\n")
 
-    # # Query
-    # print(f"Query Engine Response: {query_engine.query(query)}\n")
+    # Query
+    print(f"Query Engine Response: {query_engine.query(query)}\n")
 
 
 if __name__ == "__main__":
