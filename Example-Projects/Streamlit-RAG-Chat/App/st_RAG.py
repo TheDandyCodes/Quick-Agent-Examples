@@ -9,7 +9,10 @@ import streamlit as st
 import toml
 from dotenv import load_dotenv
 from llama_index.core.base.response.schema import Response
+import sys
 
+# Añadir el directorio padre al path para poder importar models
+sys.path.append(str(Path(__file__).parents[1]))
 from models.RAG import RAG
 
 load_dotenv()
