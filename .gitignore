@@ -1,6 +1,6 @@
 .env
-Example Projects/Streamlit RAG chat/chroma_db
+Example-Projects/Streamlit-RAG-Chat/chroma_db
 */__pycache__
-Example Projects/Tao Te Ching Interpreter/*.json
+Example-Projects/Tao Te Ching Interpreter/*.json
 Quick-Examples/chroma_db
 Quick-Examples/storage

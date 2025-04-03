@@ -1,0 +1,13 @@
+[chroma]
+VECTOR_STORE = "Example-Projects/Streamlit-RAG-Chat/chroma_db"
+CHROMA_COLLECTION = "chroma_collection"
+
+[openai]
+MODEL_NAME = "gpt-4o-mini"
+
+[google-genai]
+MODEL_NAME = "gemini-2.0-flash"
+
+[test-documents]
+FORMULARIO = "Example-Projects/Streamlit-RAG-Chat/models/05- Anexo V 2022_CRECEMOS IV .pdf"
+

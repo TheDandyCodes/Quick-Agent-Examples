@@ -36,4 +36,4 @@ deploy:
 
 deploy_test:
 	@echo "🚀 Deploying the application for testing..."
-	$(RUN) PYTHONPATH=. streamlit run App/st_RAG.py --server.address localhost --server.port 8507
+	$(RUN) PYTHONPATH=. streamlit run Example-Projects/Streamlit-RAG-Chat/App/st_RAG.py --server.address localhost --server.port 8507
