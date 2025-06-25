@@ -418,4 +418,4 @@ sidebar_output = build_sidebar()
 # Show Main Page
 build_main_page(sidebar_output)
 
-# streamlit run test.py --server.address localhost --server.port 8502 --browser.gatherUsageStats false  # noqa: E501
+# streamlit run Example-Projects/Streamlit-RAG-Chat/App/st_RAG.py --server.address localhost --server.port 8502 --browser.gatherUsageStats false  # noqa: E501

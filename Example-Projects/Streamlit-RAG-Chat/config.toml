@@ -9,5 +9,5 @@ MODEL_NAME = "gpt-4o-mini"
 MODEL_NAME = "gemini-2.0-flash"
 
 [test-documents]
-FORMULARIO = "Example-Projects/Streamlit-RAG-Chat/models/05- Anexo V 2022_CRECEMOS IV .pdf"
+FORMULARIO = "Example-Projects/Streamlit-RAG-Chat/models/Anexo III_BLANCO (solicitud Exp).pdf"
 

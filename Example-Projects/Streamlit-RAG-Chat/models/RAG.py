@@ -6,7 +6,7 @@ import toml
 from chromadb.api.models.Collection import Collection
 from dotenv import load_dotenv
 from llama_index.core import SimpleDirectoryReader, StorageContext, VectorStoreIndex
-from llama_index.llms.gemini import Gemini
+from llama_index.llms.google_genai import GoogleGenAI
 from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
@@ -25,7 +25,7 @@ class RAG:
             )
 
         if model == "gemini-2.0-flash":
-            self.model = Gemini(
+            self.model = GoogleGenAI(
                 model=f"models/{model}", api_key=os.environ["GEMINI_API_KEY"]
             )
         elif model == "gpt-4o-mini":

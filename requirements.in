@@ -1,8 +1,7 @@
-llama-index
+llama-index==0.12.35
 llama-index-embeddings-huggingface
-llama-index-llms-ollama
-llama-index-llms-gemini
-llama-index-llms-openai
+llama-index-llms-google-genai
+llama-index-tools-duckduckgo
 numpy
 pandas
 scipy
@@ -12,4 +11,7 @@ chromadb==0.4.14
 llama-index-vector-stores-chroma
 streamlit
 PyPDF2
-google-genai
+google-genai==1.14.0
+pymupdf4llm
+streamlit-pdf-viewer
+mistralai
